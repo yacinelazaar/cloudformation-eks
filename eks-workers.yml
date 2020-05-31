@@ -1,0 +1,140 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  EKS node group
+
+Parameters:
+  ParentStack:
+    Description: Parent stack name
+    Type: String
+    AllowedPattern: '^[a-zA-Z][-a-zA-Z0-9]*$'
+  AppName:
+    Description: Application name
+    Type: String
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the EKS workers.
+  # https://docs.aws.amazon.com/eks/latest/userguide/eks-linux-ami-versions.html
+  # https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id.html
+  EksWorkerAmiReleaseVersion:
+    Description: Eks node AMI release version
+    Type: String
+    Default: 1.15.10-20200228
+  EksWorkerInstanceType:
+    Description: Eks worker instance type
+    Type: String
+    Default: t2.micro 
+    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m3.medium, m3.large,
+      m3.xlarge, m3.2xlarge, m4.large, m4.xlarge, m4.2xlarge, m4.4xlarge, m4.10xlarge,
+      c4.large, c4.xlarge, c4.2xlarge, c4.4xlarge, c4.8xlarge, c3.large, c3.xlarge,
+      c3.2xlarge, c3.4xlarge, c3.8xlarge, r3.large, r3.xlarge, r3.2xlarge, r3.4xlarge,
+      r3.8xlarge, i2.xlarge, i2.2xlarge, i2.4xlarge, i2.8xlarge]
+  DesiredWorkersCapacity:
+    Description: Desired worker nodes capacity
+    Type: Number
+    Default: 2
+  MinWorkersCapacity:
+    Description: Minimum worker nodes capacity
+    Type: Number
+    Default: 2
+  MaxWorkersCapacity:
+    Description: Maximum worker nodes capacity
+    Type: Number
+    Default: 3
+
+Resources:
+  
+  # Eks Node group
+  EksNodeGroup:
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      NodegroupName: !Sub ${AppName}-EksNodeGroup
+      ClusterName: 
+        Fn::ImportValue:
+          !Sub ${AppName}-${ParentStack}-EKS-Cluster
+      ScalingConfig:
+        DesiredSize: !Ref DesiredWorkersCapacity
+        MaxSize: !Ref MaxWorkersCapacity
+        MinSize: !Ref MinWorkersCapacity
+      ReleaseVersion: !Ref EksWorkerAmiReleaseVersion
+      # The subnets to use for the Auto Scaling group that is created for your node group. 
+      # These subnets must have the tag key kubernetes.io/cluster/CLUSTER_NAME with a value of shared, 
+      # where CLUSTER_NAME is replaced with the name of your cluster.
+      Subnets: 
+        - Fn::ImportValue:
+            !Sub ${AppName}-${ParentStack}-Private-Subnets
+      NodeRole: !GetAtt EksNodeRole.Arn #required
+      AmiType: AL2_x86_64
+      # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-eks-nodegroup-remoteaccess.html
+      RemoteAccess:
+        Ec2SshKey: !Ref KeyName
+        SourceSecurityGroups: 
+          - !Ref EksWorkersSecurityGroup
+      DiskSize: 8
+      InstanceTypes:
+        - !Ref EksWorkerInstanceType
+      # Labels: Json
+      Tags: |
+        {
+          "Key": "Name",
+          "Value": "EKS-Worker-Node"
+        }
+
+  # EKS workers security group
+  EksWorkersSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${AppName}-EksSecurityGroup
+      GroupDescription: Security group for EKS workers
+      VpcId:
+        Fn::ImportValue:
+          !Sub ${AppName}-${ParentStack}-VPC
+  
+  # EKS SG rule for bastion access
+  EksSecurityGroupSshIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref EksWorkersSecurityGroup
+      SourceSecurityGroupId:
+        Fn::ImportValue:
+          !Sub ${AppName}-${ParentStack}-Bastion-Security-Group
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      
+  # EKS cluster role
+  EksClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - eks.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSServicePolicy
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+  
+  # Eks node role
+  EksNodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKS_CNI_Policy"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"

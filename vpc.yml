@@ -1,0 +1,288 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  VPC, IGW ,subnets and routing.
+
+Parameters:
+
+  ParentStack:
+    Description: Parent stack name
+    Type: String
+    AllowedPattern: '^[a-zA-Z][-a-zA-Z0-9]*$'
+  AppName:
+    Description: Application name
+    Type: String
+  VpcCidr:
+    Description: VPC Cidr that allows the creation of 4 subnets with /27 mask 
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 172.31.0.0/16
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  
+Resources:
+
+  # -------------------- VPC + Subnets ------------------- #
+
+  # VPC
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-VPC
+
+  # Internet gateway
+  Igw:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-VPC
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref Igw
+
+  # Public subnet 1
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      MapPublicIpOnLaunch: true #!!!
+      AvailabilityZone: 
+        !Select 
+          - 0
+          - Fn::GetAZs:
+              !Ref AWS::Region
+      VpcId: !Ref Vpc
+      CidrBlock:
+        !Select
+          - 0
+          - !Cidr
+            - !Ref VpcCidr
+            - 4 # Number of blocks
+            - 5 # Subnet mask "/27"
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-Public-Subnet-AZ1
+        - Key: !Sub kubernetes.io/cluster/${AppName}-EksCluster 
+          Value: shared
+  
+  # Public subnet 2
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      MapPublicIpOnLaunch: true #!!!
+      AvailabilityZone: 
+        !Select 
+          - 1
+          - Fn::GetAZs:
+              !Ref AWS::Region
+      VpcId: !Ref Vpc
+      CidrBlock:
+        !Select
+          - 1
+          - !Cidr
+            - !Ref VpcCidr
+            - 4 # Number of blocks
+            - 5 # Subnet mask "/27"
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-Public-Subnet-AZ2
+        - Key: !Sub kubernetes.io/cluster/${AppName}-EksCluster 
+          Value: shared
+
+  # Private subnet 1
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      MapPublicIpOnLaunch: false #!!!
+      AvailabilityZone: 
+        !Select 
+          - 0
+          - Fn::GetAZs:
+              !Ref AWS::Region
+      VpcId: !Ref Vpc
+      CidrBlock:
+        !Select
+          - 2
+          - !Cidr
+            - !Ref VpcCidr
+            - 4 # Number of blocks
+            - 5 # Subnet mask "/27"
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-Private-Subnet-AZ1
+        - Key: !Sub kubernetes.io/cluster/${AppName}-EksCluster 
+          Value: shared
+        - Key: kubernetes.io/role/internal-elb
+          Value: "1"
+        
+  
+  # Private subnet 2
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      MapPublicIpOnLaunch: false #!!!
+      AvailabilityZone: 
+        !Select 
+          - 1
+          - Fn::GetAZs:
+              !Ref AWS::Region
+      VpcId: !Ref Vpc
+      CidrBlock:
+        !Select
+          - 3
+          - !Cidr
+            - !Ref VpcCidr
+            - 4 # Number of blocks
+            - 5 # Subnet mask "/27"
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-Private-Subnet-AZ2
+        - Key: !Sub kubernetes.io/cluster/${AppName}-EksCluster 
+          Value: shared
+        - Key: kubernetes.io/role/internal-elb
+          Value: "1"
+
+  # ------------------------ Route tables ----------------------- #
+
+  # Public route table
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-Public-RT
+
+  # Route to IGW
+  IgwRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref Igw
+
+  # Private route table
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-Pivate-RT
+
+  # ------------------ Route tables associations ------------------ #
+  
+  PublicRouteTableAssoc1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+  
+  PublicRouteTableAssoc2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  PivateRouteTableAssoc1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+  
+  PivateRouteTableAssoc2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+
+  # --------------------- NAT Gateways -------------------- #
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayElasticIp1.AllocationId'
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+      - Key: Name
+        Value: !Sub '${AppName}-NatGateway-AZ1'
+
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NatGatewayElasticIp2.AllocationId'
+      SubnetId: !Ref PublicSubnet2
+      Tags:
+      - Key: Name
+        Value: !Sub '${AppName}-NatGateway-AZ2'
+
+  NatGatewayElasticIp1:
+    DependsOn:
+      - AttachGateway
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+
+  NatGatewayElasticIp2:
+    DependsOn:
+      - AttachGateway
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+
+  # --------------------- Security Groups -------------------- #
+
+  ControlPlaneSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Cluster communication with worker nodes
+      VpcId: !Ref Vpc
+      Tags:
+      - Key: Name
+        Value: !Sub '${AppName}-EKS-CP-Security-Group'
+
+Outputs:
+  Vpc:
+    Description: The VPC Id
+    Value: !Ref Vpc
+    Export: 
+      Name: !Sub ${AppName}-${ParentStack}-VPC
+
+  # This is teporary for deploying a single bastion instance
+  # Ideally, deploy the bastion on all public subnets using an asg
+  PublicSubnet1:
+    Value:
+      !Ref PublicSubnet1
+    Export: 
+      Name: !Sub ${AppName}-${ParentStack}-Public-Subnet-1
+
+  PublicSubnets:
+    Description: Public subnets for LB and Ingress in the EKS cluster
+    Value:
+      !Join [ ",", [ !Ref PublicSubnet1, !Ref PublicSubnet1 ] ] 
+    Export: 
+      Name: !Sub ${AppName}-${ParentStack}-Public-Subnets
+  
+  PrivateSubnets:
+    Description: Private subnets for EKS worker nodes
+    Value:
+      !Join [ ",", [ !Ref PrivateSubnet1, !Ref PrivateSubnet2 ] ] 
+    Export: 
+      Name: !Sub ${AppName}-${ParentStack}-Private-Subnets
+
+  ControlPlaneSecurityGroup:
+    Description: Security group for the cluster control plane communication with worker nodes
+    Value: !Ref ControlPlaneSecurityGroup
+    Export: 
+      Name: !Sub ${AppName}-${ParentStack}-EKS-CP-Security-Group

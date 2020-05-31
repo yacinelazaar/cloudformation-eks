@@ -1,0 +1,326 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Bastion | Jump box
+
+Parameters:
+
+  ParentStack:
+    Description: Parent stack name
+    Type: String
+    AllowedPattern: '^[a-zA-Z][-a-zA-Z0-9]*$'
+  AppName:
+    Description: Application name
+    Type: String
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance.
+    Type: AWS::EC2::KeyPair::KeyName
+  SshLocation:
+    Description: The IP address range that can be used to SSH to the bastion.
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 0.0.0.0/0
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  BastionInstanceType:
+    Description: Bastion instance type
+    Type: String
+    Default: t2.micro 
+    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m3.medium, m3.large,
+      m3.xlarge, m3.2xlarge, m4.large, m4.xlarge, m4.2xlarge, m4.4xlarge, m4.10xlarge,
+      c4.large, c4.xlarge, c4.2xlarge, c4.4xlarge, c4.8xlarge, c3.large, c3.xlarge,
+      c3.2xlarge, c3.4xlarge, c3.8xlarge, r3.large, r3.xlarge, r3.2xlarge, r3.4xlarge,
+      r3.8xlarge, i2.xlarge, i2.2xlarge, i2.4xlarge, i2.8xlarge]
+    ConstraintDescription: Please choose a valid instance type.
+  BastionRootVolumeSize:
+    Description: The size in GB for the root EBS volume.
+    Type: Number
+    Default: '8'
+  S3BucketName:
+    AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase letters, uppercase
+      letters, and hyphens (-). It cannot start or end with a hyphen (-).
+    Default: aws-shell-scripts
+    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name can
+      include numbers, lowercase letters, uppercase letters, and hyphens (-). It
+      cannot start or end with a hyphen (-).
+    Type: String
+  S3BucketRegion:
+    Default: 'us-east-1'
+    Description: The AWS Region where the Quick Start S3 bucket (S3BucketName) is hosted. When using your own bucket, you must specify this value.
+    Type: String
+  S3KeyPrefix:
+    AllowedPattern: '^([0-9a-zA-Z-.])*$'
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters, uppercase
+      letters, hyphens (-), dots (.) and forward slash (/). The prefix should
+      end with a forward slash (/).
+    Default: 'awx-bastion-linux'
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix can
+      include numbers, lowercase letters, uppercase letters, hyphens (-), dots
+      (.) and forward slash (/) and it should end with a forward slash (/).
+    Type: String
+  EnvironmentVariables:
+    Description: A comma-separated list of environment variables for use in
+      bootstrapping. Variables must be in the format KEY=VALUE. VALUE cannot
+      contain commas.
+    Type: String
+    Default: ''
+  EnableTCPForwarding:
+    Type: String
+    Description: To enable TCP forwarding, choose true.
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  EnableX11Forwarding:
+    Type: String
+    Description: To enable X11 forwarding, choose true.
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  
+
+Mappings:
+
+  AmazonLinux2Ami:
+    eu-north-1:
+      HVM64: ami-0b7a46b4bd694e8a6
+    ap-south-1:
+      HVM64: ami-0470e33cd681b2476
+    eu-west-3:
+      HVM64: ami-00077e3fed5089981
+    eu-west-2:
+      HVM64: ami-01a6e31ac994bbc09
+    eu-west-1:
+      HVM64: ami-06ce3edf0cff21f07
+    ap-northeast-2:
+      HVM64: ami-01288945bd24ed49a
+    ap-northeast-1:
+      HVM64: ami-0f310fced6141e627
+    sa-east-1:
+      HVM64: ami-003449ffb2605a74c
+    ca-central-1:
+      HVM64: ami-054362537f5132ce2
+    ap-southeast-1:
+      HVM64: ami-0ec225b5e01ccb706
+    ap-southeast-2:
+      HVM64: ami-0970010f37c4f9c8d
+    eu-central-1:
+      HVM64: ami-076431be05aaf8080
+    us-east-1:
+      HVM64: ami-0323c3dd2da7fb37d
+    us-east-2:
+      HVM64: ami-0f7919c33c90f5b58
+    us-west-1:
+      HVM64: ami-06fcc1f0bc2c8943f
+    us-west-2:
+      HVM64: ami-0d6621c01e8c2de2c
+
+
+Resources:
+  
+  # Security group
+  BastionSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: BastionSecurityGroup
+      GroupDescription: Bastion host security group
+      VpcId: 
+        Fn::ImportValue:
+          !Sub ${AppName}-${ParentStack}-VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SshLocation
+        - IpProtocol: icmp # ICMP has no ports
+          FromPort: -1
+          ToPort: -1
+          CidrIp: !Ref SshLocation
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-Bastion-SG
+  
+  # Elastic Ip
+  ElasticIp:
+    Type: AWS::EC2::EIP
+    Properties: 
+      Domain:
+        Fn::ImportValue:
+          !Sub ${AppName}-${ParentStack}-VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-Bastion-EIP
+
+  # Bastion instance
+  BastionHost:
+    Type: AWS::EC2::Instance
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT25M
+    Metadata:
+      # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-authentication.html#aws-resource-authentication-examples
+      # Use the AWS::CloudFormation::Authentication resource to specify authentication credentials for files or sources that you specify with the AWS::CloudFormation::Init resource.
+      AWS::CloudFormation::Authentication:
+        S3AccessCreds:
+          type: S3
+          roleName: !Ref BastionHostRole
+          buckets:
+            - !Sub ${S3BucketName}-${AWS::Region}
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /tmp/bastion_bootstrap.sh:
+              source: !Sub https://${S3BucketName}.s3.${S3BucketRegion}.${AWS::URLSuffix}/${S3KeyPrefix}/bastion_bootstrap.sh
+              mode: '000550'
+              owner: root
+              group: root
+              authentication: S3AccessCreds # important
+          commands:
+            b-bootstrap:
+              env:
+                REGION: !Sub ${AWS::Region} 
+                URL_SUFFIX: !Sub ${AWS::URLSuffix}
+              cwd: /tmp/
+              command: !Sub |
+                ./bastion_bootstrap.sh --tcp-forwarding ${EnableTCPForwarding} --x11-forwarding ${EnableX11Forwarding}
+    Properties:
+      KeyName: !Ref KeyName
+      ImageId: !FindInMap [ AmazonLinux2Ami, !Ref 'AWS::Region', HVM64 ]
+      InstanceType: !Ref BastionInstanceType
+      IamInstanceProfile: !Ref BastionHostProfile
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true 
+          GroupSet: 
+            - !Ref BastionSecurityGroup
+          DeviceIndex: '0'
+          SubnetId: 
+            Fn::ImportValue:
+                !Sub ${AppName}-${ParentStack}-Public-Subnet-1
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: !Ref BastionRootVolumeSize
+            VolumeType: gp2
+            Encrypted: true
+            DeleteOnTermination: true
+      UserData: 
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            set -x
+            for e in $(echo "${EnvironmentVariables}" | tr ',' ' '); do
+              export $e
+            done
+            export PATH=$PATH:/usr/local/bin
+            #cfn signaling functions
+            yum install git -y || apt-get install -y git || zypper -n install git
+
+            function cfn_fail
+            {
+              cfn-signal -e 1 --stack ${AWS::StackName} --region ${AWS::Region} --resource BastionHost
+              exit 1
+            }
+
+            function cfn_success
+            {
+              cfn-signal -e 0 --stack ${AWS::StackName} --region ${AWS::Region} --resource BastionHost
+              exit 0
+            }
+
+            until git clone https://github.com/aws-quickstart/quickstart-linux-utilities.git ; do echo "Retrying"; done
+            cd /quickstart-linux-utilities;
+            source quickstart-cfn-tools.source;
+            qs_update-os || qs_err;
+            #qs_bootstrap_pip || qs_err " pip bootstrap failed ";
+            qs_aws-cfn-bootstrap || qs_err " cfn bootstrap failed ";
+
+            EIP_LIST="${ElasticIp}"
+            CLOUDWATCHGROUP=${BastionMainLogGroup}
+            cfn-init -v --stack '${AWS::StackName}' --resource BastionHost --region ${AWS::Region} || cfn_fail
+            [ $(qs_status) == 0 ] && cfn_success || cfn_fail
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-Bastion
+
+  # Log group
+  BastionMainLogGroup:
+    Type: AWS::Logs::LogGroup
+
+  # Metric filter
+  SshMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref BastionMainLogGroup
+      FilterPattern: ON FROM USER PWD
+      MetricTransformations:
+        - MetricName: SSHCommandCount
+          MetricValue: '1'
+          MetricNamespace: !Sub "${AppName}/${ParentStack}"
+
+  # IAM role        
+  BastionHostRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Principal:
+              Service:
+                - !Sub 'ec2.${AWS::URLSuffix}'
+            Effect: Allow
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy'
+
+  # IAM policy      
+  BastionHostPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+        - !Ref BastionHostRole # Attach to bastion role
+      PolicyName: BastionPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 's3:GetObject'
+            Resource: !Sub arn:${AWS::Partition}:s3:::${S3BucketName}/${S3KeyPrefix}*
+            Effect: Allow
+          - Action:
+              - 'logs:CreateLogStream'
+              - 'logs:GetLogEvents'
+              - 'logs:PutLogEvents'
+              - 'logs:DescribeLogGroups'
+              - 'logs:DescribeLogStreams'
+              - 'logs:PutRetentionPolicy'
+              - 'logs:PutMetricFilter'
+              - 'logs:CreateLogGroup'
+            Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${BastionMainLogGroup}:*"
+            Effect: Allow
+          - Action:
+              - 'ec2:AssociateAddress'
+              - 'ec2:DescribeAddresses'
+            Resource: '*'
+            Effect: Allow
+
+  BastionHostProfile:
+    Type: AWS::IAM::InstanceProfile
+    DependsOn: BastionHostPolicy
+    Properties:
+      Path: /
+      Roles:
+        - !Ref BastionHostRole
+
+
+Outputs:
+  BastionSecurityGroup:
+    Description: Bastion host security group
+    Value: !Ref BastionSecurityGroup
+    Export: 
+      Name: !Sub ${AppName}-${ParentStack}-Bastion-Security-Group

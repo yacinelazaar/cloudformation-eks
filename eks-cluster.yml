@@ -1,0 +1,72 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  EKS nodes
+
+Parameters:
+  ParentStack:
+    Description: Parent stack name
+    Type: String
+    AllowedPattern: '^[a-zA-Z][-a-zA-Z0-9]*$'
+  AppName:
+    Description: Application name
+    Type: String
+
+Resources:
+  
+  # EKS cluster
+  EksCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Sub ${AppName}-EksCluster
+      Version: "1.15"
+      # EncryptionConfig:
+      #   - EncryptionConfig
+      RoleArn: !GetAtt EksClusterRole.Arn #required
+      # The VPC configuration used by the cluster control plane
+      ResourcesVpcConfig: #required
+        SecurityGroupIds:
+          - Fn::ImportValue:
+              !Sub ${AppName}-${ParentStack}-EKS-CP-Security-Group
+        # Specify subnets for your Amazon EKS worker nodes. 
+        # Amazon EKS creates cross-account elastic network interfaces 
+        # in these subnets to allow communication between your worker nodes 
+        # and the Kubernetes control plane.
+        SubnetIds: 
+          Fn::Split:
+            - ','
+            - Fn::Join:
+              - ','
+              - - Fn::ImportValue:
+                    !Sub ${AppName}-${ParentStack}-Public-Subnets
+                - Fn::ImportValue:
+                    !Sub ${AppName}-${ParentStack}-Private-Subnets
+          
+  # EKS cluster role
+  EksClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - eks.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSServicePolicy
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+  
+
+Outputs:
+  EksCluster:
+    Value: !Ref EksCluster
+    Export: 
+      Name: !Sub ${AWS::StackName}-EKS-Cluster
+  EksClusterEndpoint:
+    Value: !GetAtt EksCluster.Endpoint
+  EksClusterCertificateAuthorityData:
+    Value: !GetAtt EksCluster.CertificateAuthorityData
