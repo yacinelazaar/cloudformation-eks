@@ -6,6 +6,7 @@ Parameters:
   AppName:
     Description: Application name
     Type: String
+    Default: App
   VpcCidr:
     Description: VPC Cidr that allows the creation of 4 subnets with /27 mask
     Type: String
@@ -87,7 +88,7 @@ Parameters:
     ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
       uppercase letters, hyphens (-), dots (.) and forward slash (/). The prefix should
       end with a forward slash (/).
-    Default: linux-bastion
+    Default: aws-bastion-linux
     Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
       can include numbers, lowercase letters, uppercase letters, hyphens (-), dots
       (.) and forward slash (/) and it should end with a forward slash (/).
@@ -112,49 +113,16 @@ Parameters:
     - 'true'
     - 'false'
   WorkersKeyName:
-    Type: AWS::EC2::KeyPair::KeyName
     Description: Name of an existing EC2 KeyPair to enable SSH access to the EKS workers.
+    Type: AWS::EC2::KeyPair::KeyName
   EksWorkerAmiReleaseVersion:
     Description: Eks node AMI release version
     Type: String
-    Default: 1.15.10-20200228
+    Default: 1.15.11-20200507
   EksWorkerInstanceType:
     Description: Eks worker instance type
     Type: String
-    Default: t2.micro
-    AllowedValues:
-    - t2.micro
-    - t2.small
-    - t2.medium
-    - t2.large
-    - m3.medium
-    - m3.large
-    - m3.xlarge
-    - m3.2xlarge
-    - m4.large
-    - m4.xlarge
-    - m4.2xlarge
-    - m4.4xlarge
-    - m4.10xlarge
-    - c4.large
-    - c4.xlarge
-    - c4.2xlarge
-    - c4.4xlarge
-    - c4.8xlarge
-    - c3.large
-    - c3.xlarge
-    - c3.2xlarge
-    - c3.4xlarge
-    - c3.8xlarge
-    - r3.large
-    - r3.xlarge
-    - r3.2xlarge
-    - r3.4xlarge
-    - r3.8xlarge
-    - i2.xlarge
-    - i2.2xlarge
-    - i2.4xlarge
-    - i2.8xlarge
+    Default: t3.medium
     ConstraintDescription: Please choose a valid instance type.
   DesiredWorkersCapacity:
     Description: Desired worker nodes capacity
@@ -183,8 +151,7 @@ Resources:
       - Key: Name
         Value:
           Fn::Sub: ${AppName}-VPC-Stack
-      TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/8165d1671dacbd856c768312faca0ae7.template
-      TimeoutInMinutes: 5
+      TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/d6b2714d0ce6b62ef6bcffdbad67e720.template
   BastionStack:
     Type: AWS::CloudFormation::Stack
     DependsOn: VpcStack
@@ -218,9 +185,8 @@ Resources:
       - Key: Name
         Value:
           Fn::Sub: ${AppName}-Bastion-Host-Stack
-      TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/7d50dce2a91f2c2a790d71ec1d804a7d.template
-      TimeoutInMinutes: 45
-  EksStackCluster:
+      TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/de1a4fb7ce4071c620229f45cfad23e3.template
+  EksClusterStack:
     Type: AWS::CloudFormation::Stack
     DependsOn: VpcStack
     Properties:
@@ -233,13 +199,11 @@ Resources:
       - Key: Name
         Value:
           Fn::Sub: ${AppName}-EKS-Cluster-Stack
-      TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/70b107f82ee3cba8cd0bfe8209bc9a8a.template
-      TimeoutInMinutes: 5
+      TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/f76e283e794616fa124951eacee13c38.template
   EksWorkersCluster:
     Type: AWS::CloudFormation::Stack
     DependsOn:
-    - EksStackCluster
-    - BastionStack
+    - EksClusterStack
     Properties:
       Parameters:
         ParentStack:
@@ -262,5 +226,4 @@ Resources:
       - Key: Name
         Value:
           Fn::Sub: ${AppName}-EKS-Cluster-Stack
-      TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/2eb536289696cc94c970ac760e6996aa.template
-      TimeoutInMinutes: 5
+      TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/f757c47eccb8e3262e0f2a1ad214a2c7.template

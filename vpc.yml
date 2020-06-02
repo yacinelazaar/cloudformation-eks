@@ -72,8 +72,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${AppName}-Public-Subnet-AZ1
-        - Key: !Sub kubernetes.io/cluster/${AppName}-EksCluster 
-          Value: shared
+        - Key: kubernetes.io/role/elb
+          Value: "1"
   
   # Public subnet 2
   PublicSubnet2:
@@ -96,8 +96,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${AppName}-Public-Subnet-AZ2
-        - Key: !Sub kubernetes.io/cluster/${AppName}-EksCluster 
-          Value: shared
+        - Key: kubernetes.io/role/elb
+          Value: "1"
 
   # Private subnet 1
   PrivateSubnet1:
@@ -120,8 +120,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${AppName}-Private-Subnet-AZ1
-        - Key: !Sub kubernetes.io/cluster/${AppName}-EksCluster 
-          Value: shared
+        # - Key: !Sub kubernetes.io/cluster/${AppName}-EksCluster 
+        #   Value: shared
         - Key: kubernetes.io/role/internal-elb
           Value: "1"
         
@@ -147,8 +147,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${AppName}-Private-Subnet-AZ2
-        - Key: !Sub kubernetes.io/cluster/${AppName}-EksCluster 
-          Value: shared
+        # - Key: !Sub kubernetes.io/cluster/${AppName}-EksCluster
+        #   Value: shared
         - Key: kubernetes.io/role/internal-elb
           Value: "1"
 
@@ -163,13 +163,6 @@ Resources:
         - Key: Name
           Value: !Sub ${AppName}-Public-RT
 
-  # Route to IGW
-  IgwRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PublicRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref Igw
 
   # Private route table
   PrivateRouteTable:
@@ -218,15 +211,6 @@ Resources:
       - Key: Name
         Value: !Sub '${AppName}-NatGateway-AZ1'
 
-  NatGateway2:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt 'NatGatewayElasticIp2.AllocationId'
-      SubnetId: !Ref PublicSubnet2
-      Tags:
-      - Key: Name
-        Value: !Sub '${AppName}-NatGateway-AZ2'
-
   NatGatewayElasticIp1:
     DependsOn:
       - AttachGateway
@@ -234,23 +218,24 @@ Resources:
     Properties:
       Domain: vpc
 
-  NatGatewayElasticIp2:
-    DependsOn:
-      - AttachGateway
-    Type: 'AWS::EC2::EIP'
-    Properties:
-      Domain: vpc
 
-  # --------------------- Security Groups -------------------- #
+  # ------------------------ Routes ----------------------- #
 
-  ControlPlaneSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
+  # Route to IGW
+  IgwRoute:
+    Type: AWS::EC2::Route
     Properties:
-      GroupDescription: Cluster communication with worker nodes
-      VpcId: !Ref Vpc
-      Tags:
-      - Key: Name
-        Value: !Sub '${AppName}-EKS-CP-Security-Group'
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref Igw
+
+  # Route to Nat
+  NatRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
 
 Outputs:
   Vpc:
@@ -280,9 +265,3 @@ Outputs:
       !Join [ ",", [ !Ref PrivateSubnet1, !Ref PrivateSubnet2 ] ] 
     Export: 
       Name: !Sub ${AppName}-${ParentStack}-Private-Subnets
-
-  ControlPlaneSecurityGroup:
-    Description: Security group for the cluster control plane communication with worker nodes
-    Value: !Ref ControlPlaneSecurityGroup
-    Export: 
-      Name: !Sub ${AppName}-${ParentStack}-EKS-CP-Security-Group

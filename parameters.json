@@ -1,74 +1,74 @@
 [
 	{
-		"ParameterKey": "AppName",
-		"ParameterValue": "Kubernetes-Lab"
+	   "ParameterKey":"AppName",
+	   "ParameterValue":"Kubernetes-Lab"
 	},
 	{
-		"ParameterKey": "VpcCidr",
-		"ParameterValue": "172.31.0.0/16"
+	   "ParameterKey":"VpcCidr",
+	   "ParameterValue":"172.31.0.0/16"
 	},
 	{
-		"ParameterKey": "BastionKeyName",
-		"ParameterValue": "Bastion-Instance"
+	   "ParameterKey":"BastionKeyName",
+	   "ParameterValue":"Bastion-Instance"
 	},
 	{
-		"ParameterKey": "SshLocation",
-		"ParameterValue": "0.0.0.0/0"
-	},
-    {
-		"ParameterKey": "BastionInstanceType",
-		"ParameterValue": "t2.micro"
-	},
-    {
-		"ParameterKey": "BastionRootVolumeSize",
-		"ParameterValue": "8"
-	},
-    {
-		"ParameterKey": "S3BucketName",
-		"ParameterValue": "aws-shell-scripts"
-	},
-    {
-		"ParameterKey": "S3BucketRegion",
-		"ParameterValue": "us-east-1"
-	},
-    {
-		"ParameterKey": "S3KeyPrefix",
-		"ParameterValue": "aws-bastion-linux"
-	},
-    {
-		"ParameterKey": "EnvironmentVariables",
-		"ParameterValue": ""
-	},
-    {
-		"ParameterKey": "EnableTCPForwarding",
-		"ParameterValue": "true"
-	},
-    {
-		"ParameterKey": "EnableX11Forwarding",
-		"ParameterValue": "true"
-    },
-    {
-		"ParameterKey": "WorkersKeyName",
-		"ParameterValue": "EKS-Instances"
-    },
-	{
-		"ParameterKey": "EksNodeAmiReleaseVersion",
-		"ParameterValue": "1.15.10-20200228"
+	   "ParameterKey":"SshLocation",
+	   "ParameterValue":"0.0.0.0/0"
 	},
 	{
-		"ParameterKey": "EksWorkerInstanceType",
-		"ParameterValue": "t2.micro"
+	   "ParameterKey":"BastionInstanceType",
+	   "ParameterValue":"t2.micro"
 	},
-    {
-		"ParameterKey": "DesiredWorkersCapacity",
-		"ParameterValue": "2"
-    },
-    {
-		"ParameterKey": "MaxWorkersCapacity",
-		"ParameterValue": "3"
-    },
 	{
-		"ParameterKey": "MinWorkersCapacity",
-		"ParameterValue": "2"
-    }
+	   "ParameterKey":"BastionRootVolumeSize",
+	   "ParameterValue":"8"
+	},
+	{
+	   "ParameterKey":"S3BucketName",
+	   "ParameterValue":"aws-shell-scripts"
+	},
+	{
+	   "ParameterKey":"S3BucketRegion",
+	   "ParameterValue":"us-east-1"
+	},
+	{
+	   "ParameterKey":"S3KeyPrefix",
+	   "ParameterValue":"aws-bastion-linux"
+	},
+	{
+	   "ParameterKey":"EnvironmentVariables",
+	   "ParameterValue":""
+	},
+	{
+	   "ParameterKey":"EnableTCPForwarding",
+	   "ParameterValue":"true"
+	},
+	{
+	   "ParameterKey":"EnableX11Forwarding",
+	   "ParameterValue":"true"
+	},
+	{
+	   "ParameterKey":"WorkersKeyName",
+	   "ParameterValue":"EKS-Instances"
+	},
+	{
+	   "ParameterKey":"EksWorkerAmiReleaseVersion",
+	   "ParameterValue":"1.15.11-20200507"
+	},
+	{
+	   "ParameterKey":"EksWorkerInstanceType",
+	   "ParameterValue":"t3.medium"
+	},
+	{
+	   "ParameterKey":"DesiredWorkersCapacity",
+	   "ParameterValue":"2"
+	},
+	{
+	   "ParameterKey":"MaxWorkersCapacity",
+	   "ParameterValue":"3"
+	},
+	{
+	   "ParameterKey":"MinWorkersCapacity",
+	   "ParameterValue":"2"
+	}
 ]

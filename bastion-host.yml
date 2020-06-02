@@ -13,7 +13,7 @@ Parameters:
     Type: String
   KeyName:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instance.
-    Type: AWS::EC2::KeyPair::KeyName
+    Type: String
   SshLocation:
     Description: The IP address range that can be used to SSH to the bastion.
     Type: String
@@ -54,7 +54,7 @@ Parameters:
     ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters, uppercase
       letters, hyphens (-), dots (.) and forward slash (/). The prefix should
       end with a forward slash (/).
-    Default: 'awx-bastion-linux'
+    Default: 'aws-bastion-linux'
     Description: S3 key prefix for the Quick Start assets. Quick Start key prefix can
       include numbers, lowercase letters, uppercase letters, hyphens (-), dots
       (.) and forward slash (/) and it should end with a forward slash (/).
@@ -124,9 +124,9 @@ Resources:
   BastionSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: BastionSecurityGroup
+      GroupName: !Sub ${AppName}-EksBastionSecurityGroup
       GroupDescription: Bastion host security group
-      VpcId: 
+      VpcId:
         Fn::ImportValue:
           !Sub ${AppName}-${ParentStack}-VPC
       SecurityGroupIngress:
@@ -159,7 +159,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
-        Timeout: PT25M
+        # Timeout: PT15M
     Metadata:
       # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-authentication.html#aws-resource-authentication-examples
       # Use the AWS::CloudFormation::Authentication resource to specify authentication credentials for files or sources that you specify with the AWS::CloudFormation::Init resource.
@@ -234,7 +234,7 @@ Resources:
             cd /quickstart-linux-utilities;
             source quickstart-cfn-tools.source;
             qs_update-os || qs_err;
-            #qs_bootstrap_pip || qs_err " pip bootstrap failed ";
+            qs_bootstrap_pip || qs_err " pip bootstrap failed ";
             qs_aws-cfn-bootstrap || qs_err " cfn bootstrap failed ";
 
             EIP_LIST="${ElasticIp}"

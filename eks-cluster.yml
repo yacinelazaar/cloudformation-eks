@@ -25,9 +25,8 @@ Resources:
       RoleArn: !GetAtt EksClusterRole.Arn #required
       # The VPC configuration used by the cluster control plane
       ResourcesVpcConfig: #required
-        SecurityGroupIds:
-          - Fn::ImportValue:
-              !Sub ${AppName}-${ParentStack}-EKS-CP-Security-Group
+        # SecurityGroupIds:
+        #   - !Ref EksControlPlaneSecurityGroup
         # Specify subnets for your Amazon EKS worker nodes. 
         # Amazon EKS creates cross-account elastic network interfaces 
         # in these subnets to allow communication between your worker nodes 
@@ -60,12 +59,21 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonEKSServicePolicy
         - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
   
+  # EKS cluster control planne security group
+  # EksControlPlaneSecurityGroup:
+  #   Type: 'AWS::EC2::SecurityGroup'
+  #   Properties:
+  #     GroupDescription: Communication between the control plane and worker nodegroups
+  #     VpcId:
+  #       Fn::ImportValue:
+  #         !Sub ${AppName}-${ParentStack}-VPC
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub ${AppName}-EKS-Control-Plane-Security-Group
 
 Outputs:
   EksCluster:
     Value: !Ref EksCluster
-    Export: 
-      Name: !Sub ${AWS::StackName}-EKS-Cluster
   EksClusterEndpoint:
     Value: !GetAtt EksCluster.Endpoint
   EksClusterCertificateAuthorityData:
