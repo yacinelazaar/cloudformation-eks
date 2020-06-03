@@ -18,6 +18,7 @@ Resources needed to build an EKS cluster:
 - Subnet(tagged properly and ditributed in the right fashion across AZs)  
 - NatGateway and their EIPs  
 - Route tables and their associations  
+Optional:
 - Security group(s) for the contorl plane
 - Security group(s) for the workers
 
@@ -45,4 +46,9 @@ Estimate stack monthly cost (Doesnt fucking work)
 aws cloudformation estimate-template-cost \
 --template-body file://packaged-template.yml \
 --parameters | cat parameters.json
+```
+
+To get the kubeconfig (NB: this will override the current config)
+```
+aws eks update-kubeconfig --name <EKS_CLUSTER_NAME>
 ```

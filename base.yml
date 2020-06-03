@@ -140,28 +140,28 @@ Resources:
 
   # ------------------ Bastion stack ------------------- #
 
-  BastionStack:
-    Type: AWS::CloudFormation::Stack
-    DependsOn: VpcStack
-    Properties:
-      Parameters:
-        ParentStack: !Ref AWS::StackName
-        AppName: !Ref AppName
-        KeyName: !Ref BastionKeyName
-        SshLocation: !Ref SshLocation
-        BastionInstanceType: !Ref BastionInstanceType
-        BastionRootVolumeSize: !Ref BastionRootVolumeSize
-        S3BucketName: !Ref S3BucketName
-        S3BucketRegion: !Ref S3BucketRegion
-        S3KeyPrefix: !Ref S3KeyPrefix
-        EnvironmentVariables: !Ref EnvironmentVariables
-        EnableTCPForwarding: !Ref EnableTCPForwarding
-        EnableX11Forwarding: !Ref EnableX11Forwarding
-      Tags:
-        - Key: Name
-          Value: !Sub ${AppName}-Bastion-Host-Stack
-      TemplateURL: bastion-host.yml #required
-      # TimeoutInMinutes: 15
+  # BastionStack:
+  #   Type: AWS::CloudFormation::Stack
+  #   DependsOn: VpcStack
+  #   Properties:
+  #     Parameters:
+  #       ParentStack: !Ref AWS::StackName
+  #       AppName: !Ref AppName
+  #       KeyName: !Ref BastionKeyName
+  #       SshLocation: !Ref SshLocation
+  #       BastionInstanceType: !Ref BastionInstanceType
+  #       BastionRootVolumeSize: !Ref BastionRootVolumeSize
+  #       S3BucketName: !Ref S3BucketName
+  #       S3BucketRegion: !Ref S3BucketRegion
+  #       S3KeyPrefix: !Ref S3KeyPrefix
+  #       EnvironmentVariables: !Ref EnvironmentVariables
+  #       EnableTCPForwarding: !Ref EnableTCPForwarding
+  #       EnableX11Forwarding: !Ref EnableX11Forwarding
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub ${AppName}-Bastion-Host-Stack
+  #     TemplateURL: bastion-host.yml #required
+  #     # TimeoutInMinutes: 15
 
   # ----------------- EKS Cluster stack ------------------ #
 

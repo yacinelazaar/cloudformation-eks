@@ -59,37 +59,24 @@ Resources:
           - Fn::ImportValue:
               !Sub ${AppName}-${ParentStack}-Private-Subnets
       NodeRole: !GetAtt EksNodeRole.Arn #required
-      # AmiType: AL2_x86_64
+      AmiType: AL2_x86_64
       # # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-eks-nodegroup-remoteaccess.html
       RemoteAccess:
         Ec2SshKey: !Ref KeyName
-        SourceSecurityGroups: 
-          - !Ref EksWorkersSecurityGroup
-      # DiskSize: 8
       InstanceTypes:
         - !Ref EksWorkerInstanceType
 
-  # EKS workers security group
-  EksWorkersSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: !Sub ${AppName}-EksWorkersSecurityGroup
-      GroupDescription: Security group for EKS workers
-      VpcId:
-        Fn::ImportValue:
-          !Sub ${AppName}-${ParentStack}-VPC
-  
-  # EKS SG rule for bastion access
-  EksSecurityGroupSshIngress:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref EksWorkersSecurityGroup
-      SourceSecurityGroupId:
-        Fn::ImportValue:
-          !Sub ${AppName}-${ParentStack}-Bastion-Security-Group
-      IpProtocol: tcp
-      FromPort: 22
-      ToPort: 22
+  # # EKS SG rule for bastion access
+  # EksSecurityGroupSshIngress:
+  #   Type: AWS::EC2::SecurityGroupIngress
+  #   Properties:
+  #     GroupId: !Ref EksWorkersSecurityGroup
+  #     SourceSecurityGroupId:
+  #       Fn::ImportValue:
+  #         !Sub ${AppName}-${ParentStack}-Bastion-Security-Group
+  #     IpProtocol: tcp
+  #     FromPort: 22
+  #     ToPort: 22
       
   # Eks node role
   EksNodeRole:

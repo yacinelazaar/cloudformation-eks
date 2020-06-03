@@ -152,40 +152,6 @@ Resources:
         Value:
           Fn::Sub: ${AppName}-VPC-Stack
       TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/d6b2714d0ce6b62ef6bcffdbad67e720.template
-  BastionStack:
-    Type: AWS::CloudFormation::Stack
-    DependsOn: VpcStack
-    Properties:
-      Parameters:
-        ParentStack:
-          Ref: AWS::StackName
-        AppName:
-          Ref: AppName
-        KeyName:
-          Ref: BastionKeyName
-        SshLocation:
-          Ref: SshLocation
-        BastionInstanceType:
-          Ref: BastionInstanceType
-        BastionRootVolumeSize:
-          Ref: BastionRootVolumeSize
-        S3BucketName:
-          Ref: S3BucketName
-        S3BucketRegion:
-          Ref: S3BucketRegion
-        S3KeyPrefix:
-          Ref: S3KeyPrefix
-        EnvironmentVariables:
-          Ref: EnvironmentVariables
-        EnableTCPForwarding:
-          Ref: EnableTCPForwarding
-        EnableX11Forwarding:
-          Ref: EnableX11Forwarding
-      Tags:
-      - Key: Name
-        Value:
-          Fn::Sub: ${AppName}-Bastion-Host-Stack
-      TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/de1a4fb7ce4071c620229f45cfad23e3.template
   EksClusterStack:
     Type: AWS::CloudFormation::Stack
     DependsOn: VpcStack
@@ -226,4 +192,4 @@ Resources:
       - Key: Name
         Value:
           Fn::Sub: ${AppName}-EKS-Cluster-Stack
-      TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/f757c47eccb8e3262e0f2a1ad214a2c7.template
+      TemplateURL: https://s3.amazonaws.com/yassine-cfn-templates/eks-cluster/6cc00f30610f817cb62aaf49bc6c8845.template
